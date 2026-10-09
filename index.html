@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>S×T 事務所 実寸3Dビュー</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#eef1f4;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+#app{position:fixed;inset:0}
+#top{position:fixed;left:12px;top:12px;right:12px;z-index:5;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);padding:10px 12px;border-radius:12px;box-shadow:0 3px 14px #0002}
+#title{font-weight:700;font-size:15px}.sub{font-size:11px;color:#555;margin-top:3px}
+#cams{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:5;display:flex;gap:8px;background:#fffffff0;padding:8px;border-radius:14px;box-shadow:0 3px 14px #0002}
+button{border:0;border-radius:10px;padding:11px 15px;font-weight:700;background:#e7ebef;color:#17202a;font-size:15px}
+button.active{background:#163a67;color:#fff}
+#info{position:fixed;right:12px;bottom:82px;z-index:5;background:#ffffffdf;padding:8px 10px;border-radius:10px;font-size:11px;line-height:1.5;color:#333}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="top"><div id="title">S×T 事務所｜実寸3Dビュー</div><div class="sub">201家具.pdf 基準 / 単位 mm / A・B・C・D視点切替</div></div>
+<div id="cams"><button data-c="A">A</button><button data-c="B">B</button><button data-c="C">C</button><button data-c="D">D</button><button data-c="TOP">平面</button></div>
+<div id="info">1本指：回転　2本指：移動<br>ピンチ：ズーム</div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+import {OrbitControls} from 'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js';
+
+const host=document.getElementById('app');
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0xf0f2f4);
+const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.01,100);
+const renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(innerWidth,innerHeight); renderer.shadowMap.enabled=true; host.appendChild(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement); controls.enableDamping=true; controls.target.set(4.7,1.1,3.8); controls.maxPolarAngle=Math.PI*.49;
+
+const M=.001;
+const matWhite=new THREE.MeshStandardMaterial({color:0xf8f8f6,roughness:.82});
+const matDesk=new THREE.MeshStandardMaterial({color:0xf4f5f3,roughness:.72});
+const matMetal=new THREE.MeshStandardMaterial({color:0xe7e9ea,metalness:.15,roughness:.55});
+const matWood=new THREE.MeshStandardMaterial({color:0xc9a06e,roughness:.8});
+const matDark=new THREE.MeshStandardMaterial({color:0x34383d,roughness:.7});
+const matGlass=new THREE.MeshStandardMaterial({color:0xbfd8e5,transparent:true,opacity:.28,roughness:.25});
+
+function box(name,x,z,w,d,h,mat,y=0){
+ const g=new THREE.BoxGeometry(w*M,h*M,d*M); const m=new THREE.Mesh(g,mat); m.name=name; m.position.set((x+w/2)*M,(y+h/2)*M,(z+d/2)*M); m.castShadow=m.receiveShadow=true; scene.add(m); return m;
+}
+function wall(x,z,w,d,h=2450){return box('壁',x,z,w,d,h,matWhite)}
+function desk(x,z,w,d=700,h=700){
+ box('天板',x,z,w,d,35,matDesk,h-35);
+ [[35,35],[w-70,35],[35,d-70],[w-70,d-70]].forEach(([lx,lz])=>box('脚',x+lx,z+lz,35,35,h-35,matMetal));
+}
+function rack(x,z,w=810,d=410,h=1800){
+ [0,h/4,h/2,3*h/4,h-25].forEach(y=>box('棚板',x,z,w,d,25,matWhite,y));
+ [[0,0],[w-25,0],[0,d-25],[w-25,d-25]].forEach(([lx,lz])=>box('支柱',x+lx,z+lz,25,25,h,matMetal));
+}
+function meeting(x,z,w=2400,d=1200,h=750){
+ box('打合せ天板',x,z,w,d,45,matWood,h-45);
+ [[160,130],[w-210,130],[160,d-180],[w-210,d-180]].forEach(([lx,lz])=>box('脚',x+lx,z+lz,50,50,h-45,matDark));
+}
+function chair(x,z,rot=0){
+ const grp=new THREE.Group(); scene.add(grp);
+ const seat=new THREE.Mesh(new THREE.BoxGeometry(.44,.06,.44),matDark); seat.position.set(x*M,.46,z*M); grp.add(seat);
+ const back=new THREE.Mesh(new THREE.BoxGeometry(.44,.48,.05),matDark); back.position.set(x*M,.72,(z+195)*M); grp.add(back);
+ grp.rotation.y=rot;
+}
+// Floor: dimensioned overall working envelope from plan.
+box('床',0,0,10500,9000,35,matWood,-35);
+
+// Major perimeter / partition geometry traced to the dimensioned plan.
+// Heights follow drawing CH values where shown.
+wall(0,0,10500,100,2450); wall(0,8900,10500,100,2480); wall(0,0,100,9000,2450); wall(10400,0,100,9000,2480);
+// principal internal partitions
+wall(0,3422,3432,90,2450); wall(3432,3422,90,2600,2450);
+wall(4647,6022,90,2878,2480);
+wall(3432,6022,1215,90,2150);
+wall(4647,6022,4504,90,2480);
+
+// Windows / visual glazing bands
+box('腰窓',100,650,40,2100,300,matGlass,850);
+box('腰窓',10360,1200,40,3500,350,matGlass,850);
+box('腰窓',9150,6060,1200,40,350,matGlass,850);
+
+// Existing desks / furniture from 201家具.pdf
+desk(850,1250,1400,700);                  // 1400x700
+desk(7850,1350,1200,700);                 // 1200x700
+desk(4900,2600,1000,700);                 // 1000x700
+desk(6100,3600,1000,700);                 // 1000x700
+
+// new 810x410x1800 racks x5
+for(let i=0;i<5;i++) rack(950+i*850,180,810,410,1800);
+// 1200x450x1800 rack
+rack(900,2850,1200,450,1800);
+// existing/new 1200x450x1200 racks
+rack(3650,4650,1200,450,1200);
+rack(6100,6600,1200,450,1200);
+rack(6100,7900,1200,450,1800);
+
+// refrigerator / copier / shoe cabinet / storage masses
+box('冷蔵庫',550,4300,650,650,1500,matWhite);
+box('コピー機',7450,6900,650,650,1100,matWhite);
+box('下駄箱',3050,6200,802,364,1140,matWhite);
+box('書類',5000,7750,850,450,1200,matWhite);
+
+// meeting table 2400x1200x750 and 6 chairs
+meeting(7950,6500,2400,1200,750);
+[[8150,6250,0],[8750,6250,0],[9350,6250,0],[8150,8000,Math.PI],[8750,8000,Math.PI],[9350,8000,Math.PI]].forEach(v=>chair(...v));
+
+// Beams: visible soffits based on drawing labels
+box('梁1850',900,950,3300,300,600,matWhite,1850);
+box('梁2100',4200,950,3900,300,350,matWhite,2100);
+box('梁2360',4500,4100,3200,250,90,matWhite,2360);
+
+// lighting
+scene.add(new THREE.HemisphereLight(0xffffff,0x8b8b8b,2.0));
+const sun=new THREE.DirectionalLight(0xffffff,2.1); sun.position.set(4,8,3); sun.castShadow=true; scene.add(sun);
+
+// Camera presets correspond to A/B/C/D marked positions in source plan.
+// Eye height 1500 mm; targets chosen along each plan arrow direction.
+const presets={
+ A:{p:[3.05,1.50,6.00],t:[5.30,1.05,3.65]},
+ B:{p:[5.85,1.50,6.15],t:[8.15,1.05,6.90]},
+ C:{p:[7.35,1.50,5.95],t:[8.75,1.05,3.60]},
+ D:{p:[4.10,1.50,1.15],t:[5.85,1.05,3.25]},
+ TOP:{p:[5.25,12.5,4.50],t:[5.25,0,4.50]}
+};
+function setCam(k){
+ const q=presets[k]; camera.position.set(...q.p); controls.target.set(...q.t); controls.update();
+ document.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.c===k));
+}
+document.querySelectorAll('button').forEach(b=>b.onclick=()=>setCam(b.dataset.c));
+setCam('A');
+
+function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)}
+addEventListener('resize',resize);
+renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera)});
+</script>
+</body></html>
